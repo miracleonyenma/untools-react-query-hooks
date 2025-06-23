@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pagination,
-  Meta,
+  // Meta, // Unused import
   SortInput,
-  Maybe,
+  // Maybe, // Unused import
   QueryResult,
   BaseServiceOptions,
 } from "../types";
@@ -77,7 +77,7 @@ export const usePaginatedQuery = <F, D>({
 
     logger.debug("Calling service");
 
-    let result;
+    let result: QueryResult<D>;
 
     try {
       logger.debug("Calling service");
@@ -113,7 +113,7 @@ export const usePaginatedQuery = <F, D>({
         setIsLoading(false);
       }
     }
-  }, [pagination, sort, debouncedFilters]);
+  }, [pagination, sort, debouncedFilters, state]);
 
   // Handle cleanup
   useEffect(() => {

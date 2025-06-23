@@ -55,7 +55,7 @@ export const useQuery = <T>({
         setIsLoading(false);
       }
     }
-  }, [service]);
+  }, [service, state]);
 
   useEffect(() => {
     isMounted.current = true;

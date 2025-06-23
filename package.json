@@ -2,6 +2,7 @@
   "name": "@untools/react-query-hooks",
   "version": "0.0.1",
   "description": "TypeScript-first React hooks for data fetching, pagination, and query management",
+  "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
@@ -32,7 +33,7 @@
     "graphql",
     "rest-api"
   ],
-  "author": "Your Name",
+  "author": "Aevr <aevrstudio@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -42,6 +43,12 @@
     "url": "https://github.com/miracleonyenma/react-query-hooks/issues"
   },
   "homepage": "https://github.com/miracleonyenma/react-query-hooks#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "peerDependencies": {
     "react": ">=16.8.0"
   },
@@ -51,7 +58,6 @@
     "@rollup/plugin-typescript": "^11.1.5",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.1.2",
-    "@testing-library/react-hooks": "^8.0.1",
     "@types/jest": "^29.5.8",
     "@types/react": "^18.2.38",
     "@typescript-eslint/eslint-plugin": "^6.12.0",
@@ -67,6 +73,7 @@
     "rollup-plugin-dts": "^6.1.0",
     "rollup-plugin-peer-deps-external": "^2.2.4",
     "ts-jest": "^29.1.1",
+    "tslib": "^2.6.2",
     "typescript": "^5.2.2"
   },
   "dependencies": {}
