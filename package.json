@@ -37,12 +37,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/miracleonyenma/react-query-hooks.git"
+    "url": "https://github.com/miracleonyenma/untools-react-query-hooks.git"
   },
   "bugs": {
-    "url": "https://github.com/miracleonyenma/react-query-hooks/issues"
+    "url": "https://github.com/miracleonyenma/untools-react-query-hooks/issues"
   },
-  "homepage": "https://github.com/miracleonyenma/react-query-hooks#readme",
+  "homepage": "https://github.com/miracleonyenma/untools-react-query-hooks#readme",
   "publishConfig": {
     "access": "public"
   },
