@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Pagination,
-  // Meta, // Unused import
   SortInput,
-  // Maybe, // Unused import
   QueryResult,
   BaseServiceOptions,
 } from "../types";
@@ -48,7 +46,6 @@ export const usePaginatedQuery = <F, D>({
     }
   );
   const [error, setError] = useState<Error | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
   const [filters, setFilters] = useState<F>(initialFilters as F);
   const [pagination, setPagination] = useState(initialPagination);
@@ -58,66 +55,81 @@ export const usePaginatedQuery = <F, D>({
   const isMounted = useRef(true);
   // Track if a request is in progress
   const requestInProgress = useRef(false);
+  // Stable reference to service
+  const serviceRef = useRef(service);
+  // Stable reference to state callbacks
+  const stateRef = useRef(state);
 
   const debouncedFilters = useDebounce(filters, debounceTime);
 
-  // Stable reference to service
-  const serviceRef = useRef(service);
+  // Update refs without causing re-renders
   useEffect(() => {
     serviceRef.current = service;
   }, [service]);
 
-  const fetchData = useCallback(async () => {
-    // Prevent concurrent requests and don't fetch if unmounted
-    if (requestInProgress.current || !isMounted.current) return;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
-    requestInProgress.current = true;
-    setIsLoading(true);
-    setError(null);
+  // Create stable fetchData function
+  const fetchData = useCallback(
+    async (
+      currentPagination: typeof pagination,
+      currentSort: typeof sort,
+      currentFilters: F
+    ) => {
+      // Prevent concurrent requests and don't fetch if unmounted
+      if (requestInProgress.current || !isMounted.current) return;
 
-    logger.debug("Calling service");
+      requestInProgress.current = true;
+      setIsLoading(true);
+      setError(null);
 
-    let result: QueryResult<D>;
-
-    try {
-      logger.debug("Calling service");
-      result = await serviceRef.current.getData({
-        pagination,
-        sort,
-        filters: debouncedFilters,
-      });
-
-      if (isMounted.current) {
-        setData(result);
-        state?.setState?.(result);
-      }
-    } catch (error) {
-      logger.error("Error fetching paginated data:", error);
-      if (isMounted.current) {
-        setError(() => {
-          // construct a new error object with a message
-          return new Error(
-            `${
-              typeof error === "string"
-                ? error
-                : typeof (error as { message: string })?.message === "string"
-                ? (error as { message: string })?.message
-                : "Unknown error"
-            }`
-          );
+      try {
+        logger.debug("Calling service with params:", {
+          pagination: currentPagination,
+          sort: currentSort,
+          filters: currentFilters,
         });
+
+        const result = await serviceRef.current.getData({
+          pagination: currentPagination,
+          sort: currentSort,
+          filters: currentFilters,
+        });
+
+        if (isMounted.current) {
+          setData(result);
+          stateRef.current?.setState?.(result);
+          logger.debug("Data fetched successfully:", result);
+        }
+      } catch (error) {
+        logger.error("Error fetching paginated data:", error);
+        if (isMounted.current) {
+          setError(() => {
+            return new Error(
+              `${
+                typeof error === "string"
+                  ? error
+                  : typeof (error as { message: string })?.message === "string"
+                  ? (error as { message: string })?.message
+                  : "Unknown error"
+              }`
+            );
+          });
+        }
+      } finally {
+        requestInProgress.current = false;
+        if (isMounted.current) {
+          setIsLoading(false);
+        }
       }
-    } finally {
-      requestInProgress.current = false;
-      if (isMounted.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [pagination, sort, debouncedFilters, state]);
+    },
+    []
+  ); // No dependencies to prevent recreation
 
   // Handle cleanup
   useEffect(() => {
-    // Reset both flags on mount
     isMounted.current = true;
     requestInProgress.current = false;
 
@@ -126,33 +138,47 @@ export const usePaginatedQuery = <F, D>({
     };
   }, []);
 
-  // Fetch data when dependencies change
+  // Reset pagination when filters change (but prevent infinite loop)
+  const prevFiltersRef = useRef(debouncedFilters);
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const filtersChanged = prevFiltersRef.current !== debouncedFilters;
+    prevFiltersRef.current = debouncedFilters;
 
-  // Reset pagination when filters change
-  useEffect(() => {
-    // When filters change, reset to page 1
-    if (pagination.page !== 1) {
+    if (filtersChanged && pagination.page !== 1) {
+      logger.debug("Filters changed, resetting pagination to page 1");
       setPagination((prev) => ({ ...prev, page: 1 }));
+      return; // Don't fetch data here, let the pagination change trigger it
     }
-  }, [debouncedFilters, pagination.page]);
+
+    // Only fetch if filters changed and we're already on page 1, or if this is initial load
+    if (filtersChanged || (!prevFiltersRef.current && debouncedFilters)) {
+      logger.debug("Fetching data due to filter change");
+      fetchData(pagination, sort, debouncedFilters);
+    }
+  }, [debouncedFilters, pagination, sort, fetchData]);
+
+  // Fetch data when pagination or sort changes (but not filters, handled above)
+  const prevPaginationRef = useRef(pagination);
+  const prevSortRef = useRef(sort);
 
   useEffect(() => {
-    logger.debug({
-      requestInProgress: requestInProgress.current,
-      isMounted: isMounted.current,
-      data,
-    });
-  }, [data]);
+    const paginationChanged = prevPaginationRef.current !== pagination;
+    const sortChanged = prevSortRef.current !== sort;
 
-  useEffect(() => {
-    logger.debug({
-      data,
-      isLoading,
-    });
-  }, [data, isLoading]);
+    prevPaginationRef.current = pagination;
+    prevSortRef.current = sort;
+
+    if (paginationChanged || sortChanged) {
+      logger.debug("Fetching data due to pagination/sort change");
+      fetchData(pagination, sort, debouncedFilters);
+    }
+  }, [pagination, sort, debouncedFilters, fetchData]);
+
+  // Manual refresh function
+  const refresh = useCallback(() => {
+    logger.debug("Manual refresh triggered");
+    fetchData(pagination, sort, debouncedFilters);
+  }, [fetchData, pagination, sort, debouncedFilters]);
 
   return {
     data,
@@ -170,6 +196,6 @@ export const usePaginatedQuery = <F, D>({
       },
       []
     ),
-    refresh: fetchData,
+    refresh,
   };
 };
