@@ -3,19 +3,19 @@
 export type Maybe<T> = T | null;
 
 export interface Pagination {
-  page: number;
-  limit: number;
+  page?: Maybe<number>;
+  limit?: Maybe<number>;
 }
 
 export type SortInput = Record<string, string>;
 
 export interface Meta {
-  page: number;
-  limit: number;
-  pages: number;
-  total: number;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
+  page?: Maybe<number>;
+  limit?: Maybe<number>;
+  pages?: Maybe<number>;
+  total?: Maybe<number>;
+  hasNextPage?: Maybe<boolean>;
+  hasPrevPage?: Maybe<boolean>;
 }
 
 export interface QueryResult<D> {
