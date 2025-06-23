@@ -1,6 +1,6 @@
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { usePaginatedQuery } from '../usePaginatedQuery';
-import { QueryResult } from '../../types';
+import { QueryResult, SortInput } from '../../types';
 
 // Mock types for testing
 interface TestFilters {
@@ -100,7 +100,7 @@ describe('usePaginatedQuery', () => {
     );
     
     // Should have updated data
-    expect(result.current.data.meta.page).toBe(2);
+    expect(result.current.data.meta?.page).toBe(2);
   });
 
   // Test filter updates
@@ -167,13 +167,13 @@ describe('usePaginatedQuery', () => {
 
     // Update sort
     act(() => {
-      result.current.setSort({ field: 'name', direction: 'asc' });
+      result.current.setSort({ field: 'name', order: 'ASC' } as SortInput);
     });
 
     // Wait for the query to complete
     await waitFor(() => expect(mockGetData).toHaveBeenCalledWith(
       expect.objectContaining({
-        sort: { field: 'name', direction: 'asc' },
+        sort: { field: 'name', order: 'ASC' },
       })
     ));
   });
@@ -198,7 +198,7 @@ describe('usePaginatedQuery', () => {
     await waitFor(() => {
       expect(result.current.error).toBeTruthy();
       expect(result.current.error?.message).toContain('API error');
-      expect(result.current.data.data).toEqual([]);
+      expect(result.current.data.data || []).toEqual([]);
     });
   });
 

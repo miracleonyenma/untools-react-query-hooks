@@ -7,10 +7,7 @@ export interface Pagination {
   limit: number;
 }
 
-export interface SortInput {
-  field: string;
-  order: "ASC" | "DESC";
-}
+export type SortInput = Record<string, string>;
 
 export interface Meta {
   page: number;
