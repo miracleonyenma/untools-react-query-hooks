@@ -46,7 +46,7 @@ export const usePaginatedQuery = <F, D>({
     }
   );
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with loading true
   const [filters, setFilters] = useState<F>(initialFilters as F);
   const [pagination, setPagination] = useState(initialPagination);
   const [sort, setSort] = useState(initialSort);
@@ -106,17 +106,14 @@ export const usePaginatedQuery = <F, D>({
       } catch (error) {
         logger.error("Error fetching paginated data:", error);
         if (isMounted.current) {
-          setError(() => {
-            return new Error(
-              `${
-                typeof error === "string"
-                  ? error
-                  : typeof (error as { message: string })?.message === "string"
-                  ? (error as { message: string })?.message
-                  : "Unknown error"
-              }`
-            );
-          });
+          // Directly set the error for more reliable state updates
+          const errorMessage = typeof error === "string"
+            ? error
+            : typeof (error as { message: string })?.message === "string"
+              ? (error as { message: string })?.message
+              : "Unknown error";
+              
+          setError(new Error(errorMessage));
         }
       } finally {
         requestInProgress.current = false;
@@ -128,15 +125,19 @@ export const usePaginatedQuery = <F, D>({
     []
   ); // No dependencies to prevent recreation
 
-  // Handle cleanup
+  // Handle cleanup and initial data fetch
   useEffect(() => {
     isMounted.current = true;
     requestInProgress.current = false;
+    
+    // Fetch data immediately on mount
+    fetchData(pagination, sort, debouncedFilters);
 
     return () => {
       isMounted.current = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [/* Intentionally empty to run only on mount, using refs for updated values */]);
 
   // Reset pagination when filters change (but prevent infinite loop)
   const prevFiltersRef = useRef(debouncedFilters);
