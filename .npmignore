@@ -1,0 +1,39 @@
+# Source files
+src/
+*.ts
+*.tsx
+!dist/
+
+# Development files
+.eslintrc.js
+jest.config.js
+rollup.config.js
+tsconfig.json
+
+# Tests
+**/*.test.*
+**/*.spec.*
+__tests__/
+coverage/
+
+# Development dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env*
+
+# Git
+.git/
+.gitignore
