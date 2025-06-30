@@ -22,6 +22,7 @@ export interface PaginatedQueryOptions<F, D> {
   initialSort?: BaseServiceOptions<F>["sort"];
   initialPagination?: BaseServiceOptions<F>["pagination"];
   debounceTime?: number;
+  enabled?: boolean; // New enabled option
 }
 
 export const usePaginatedQuery = <F, D>({
@@ -31,6 +32,7 @@ export const usePaginatedQuery = <F, D>({
   initialSort,
   debounceTime = 500,
   state,
+  enabled = true, // Default to true for backwards compatibility
 }: PaginatedQueryOptions<F, D>) => {
   const [data, setData] = useState<QueryResult<D>>(
     state?.getState?.() || {
@@ -46,7 +48,7 @@ export const usePaginatedQuery = <F, D>({
     }
   );
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true
+  const [isLoading, setIsLoading] = useState(enabled); // Only start loading if enabled
   const [filters, setFilters] = useState<F>(initialFilters as F);
   const [pagination, setPagination] = useState(initialPagination);
   const [sort, setSort] = useState(initialSort);
@@ -78,8 +80,8 @@ export const usePaginatedQuery = <F, D>({
       currentSort: typeof sort,
       currentFilters: F
     ) => {
-      // Prevent concurrent requests and don't fetch if unmounted
-      if (requestInProgress.current || !isMounted.current) return;
+      // Prevent concurrent requests, don't fetch if unmounted, or if disabled
+      if (requestInProgress.current || !isMounted.current || !enabled) return;
 
       requestInProgress.current = true;
       setIsLoading(true);
@@ -107,12 +109,13 @@ export const usePaginatedQuery = <F, D>({
         logger.error("Error fetching paginated data:", error);
         if (isMounted.current) {
           // Directly set the error for more reliable state updates
-          const errorMessage = typeof error === "string"
-            ? error
-            : typeof (error as { message: string })?.message === "string"
+          const errorMessage =
+            typeof error === "string"
+              ? error
+              : typeof (error as { message: string })?.message === "string"
               ? (error as { message: string })?.message
               : "Unknown error";
-              
+
           setError(new Error(errorMessage));
         }
       } finally {
@@ -122,26 +125,34 @@ export const usePaginatedQuery = <F, D>({
         }
       }
     },
-    []
-  ); // No dependencies to prevent recreation
+    [enabled] // Add enabled as dependency
+  );
 
   // Handle cleanup and initial data fetch
   useEffect(() => {
     isMounted.current = true;
     requestInProgress.current = false;
-    
-    // Fetch data immediately on mount
-    fetchData(pagination, sort, debouncedFilters);
+
+    // Only fetch data immediately on mount if enabled
+    if (enabled) {
+      fetchData(pagination, sort, debouncedFilters);
+    } else {
+      // If disabled, ensure loading state is false
+      setIsLoading(false);
+    }
 
     return () => {
       isMounted.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [/* Intentionally empty to run only on mount, using refs for updated values */]);
+  }, [enabled]); // Add enabled as dependency
 
   // Reset pagination when filters change (but prevent infinite loop)
   const prevFiltersRef = useRef(debouncedFilters);
   useEffect(() => {
+    // Don't do anything if disabled
+    if (!enabled) return;
+
     const filtersChanged = prevFiltersRef.current !== debouncedFilters;
     prevFiltersRef.current = debouncedFilters;
 
@@ -156,13 +167,16 @@ export const usePaginatedQuery = <F, D>({
       logger.debug("Fetching data due to filter change");
       fetchData(pagination, sort, debouncedFilters);
     }
-  }, [debouncedFilters, pagination, sort, fetchData]);
+  }, [debouncedFilters, pagination, sort, fetchData, enabled]); // Add enabled as dependency
 
   // Fetch data when pagination or sort changes (but not filters, handled above)
   const prevPaginationRef = useRef(pagination);
   const prevSortRef = useRef(sort);
 
   useEffect(() => {
+    // Don't do anything if disabled
+    if (!enabled) return;
+
     const paginationChanged = prevPaginationRef.current !== pagination;
     const sortChanged = prevSortRef.current !== sort;
 
@@ -173,9 +187,24 @@ export const usePaginatedQuery = <F, D>({
       logger.debug("Fetching data due to pagination/sort change");
       fetchData(pagination, sort, debouncedFilters);
     }
-  }, [pagination, sort, debouncedFilters, fetchData]);
+  }, [pagination, sort, debouncedFilters, fetchData, enabled]); // Add enabled as dependency
 
-  // Manual refresh function
+  // Effect to handle when enabled changes from false to true
+  useEffect(() => {
+    if (enabled) {
+      // When enabled becomes true, fetch data with current parameters
+      logger.debug("Query enabled, fetching data");
+      fetchData(pagination, sort, debouncedFilters);
+    } else {
+      // When disabled, clear loading state and potentially clear error
+      setIsLoading(false);
+      // Optionally clear error when disabled:
+      // setError(null);
+    }
+  }, [enabled, fetchData, pagination, sort, debouncedFilters]);
+
+  // Manual refresh function - should work regardless of enabled state
+  // This allows manual triggering even when auto-fetching is disabled
   const refresh = useCallback(() => {
     logger.debug("Manual refresh triggered");
     fetchData(pagination, sort, debouncedFilters);
