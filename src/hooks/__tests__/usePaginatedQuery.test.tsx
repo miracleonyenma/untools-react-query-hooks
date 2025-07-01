@@ -1,3 +1,5 @@
+// ./src/hooks/__tests__/usePaginatedQuery.test.tsx
+
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { usePaginatedQuery } from "../usePaginatedQuery";
 import { QueryResult } from "../../types";

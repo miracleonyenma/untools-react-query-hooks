@@ -15,6 +15,11 @@ export type {
 
 export type { QueryOptions } from "./hooks/useQuery";
 export type { PaginatedQueryOptions } from "./hooks/usePaginatedQuery";
+export type {
+  InfiniteQueryOptions,
+  InfiniteQueryResult,
+} from "./hooks/useInfiniteQuery";
+export type { UseIntersectionObserverOptions } from "./hooks/useIntersectionObserver";
 
 // Utils
 export { logger } from "./utils/logger";
