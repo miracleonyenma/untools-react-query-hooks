@@ -2,6 +2,8 @@
 export { useQuery } from "./hooks/useQuery";
 export { usePaginatedQuery } from "./hooks/usePaginatedQuery";
 export { useDebounce } from "./hooks/useDebounce";
+export { useInfiniteQuery } from "./hooks/useInfiniteQuery";
+export { useIntersectionObserver } from "./hooks/useIntersectionObserver";
 
 // Types
 export type {
