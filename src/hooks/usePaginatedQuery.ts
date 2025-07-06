@@ -2,39 +2,54 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Pagination,
-  SortInput,
+  DefaultPagination,
+  DefaultSortInput,
+  DefaultMeta,
   QueryResult,
   BaseServiceOptions,
 } from "../types";
 import { logger } from "../utils/logger";
 import { useDebounce } from "./useDebounce";
 
-export interface PaginatedQueryOptions<F, D> {
+export interface PaginatedQueryOptions<
+  F,
+  D,
+  P = DefaultPagination,
+  S = DefaultSortInput,
+  M = DefaultMeta
+> {
   service: {
-    getData: (options: BaseServiceOptions<F>) => Promise<QueryResult<D>>;
+    getData: (
+      options: BaseServiceOptions<F, P, S>
+    ) => Promise<QueryResult<D, M>>;
   };
   state?: {
-    setState?: (state: QueryResult<D>) => void;
-    getState?: () => QueryResult<D> | null;
+    setState?: (state: QueryResult<D, M>) => void;
+    getState?: () => QueryResult<D, M> | null;
   };
   initialFilters?: F;
-  initialSort?: BaseServiceOptions<F>["sort"];
-  initialPagination?: BaseServiceOptions<F>["pagination"];
+  initialSort?: BaseServiceOptions<F, P, S>["sort"];
+  initialPagination?: BaseServiceOptions<F, P, S>["pagination"];
   debounceTime?: number;
-  enabled?: boolean; // New enabled option
+  enabled?: boolean;
 }
 
-export const usePaginatedQuery = <F, D>({
+export const usePaginatedQuery = <
+  F,
+  D,
+  P = DefaultPagination,
+  S = DefaultSortInput,
+  M = DefaultMeta
+>({
   service,
   initialFilters,
-  initialPagination = { page: 1, limit: 10 },
+  initialPagination = { page: 1, limit: 10 } as P,
   initialSort,
   debounceTime = 500,
   state,
-  enabled = true, // Default to true for backwards compatibility
-}: PaginatedQueryOptions<F, D>) => {
-  const [data, setData] = useState<QueryResult<D>>(
+  enabled = true,
+}: PaginatedQueryOptions<F, D, P, S, M>) => {
+  const [data, setData] = useState<QueryResult<D, M>>(
     state?.getState?.() || {
       data: [],
       meta: {
@@ -44,11 +59,11 @@ export const usePaginatedQuery = <F, D>({
         total: 0,
         hasNextPage: false,
         hasPrevPage: false,
-      },
+      } as M,
     }
   );
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(enabled); // Only start loading if enabled
+  const [isLoading, setIsLoading] = useState(enabled);
   const [filters, setFilters] = useState<F>(initialFilters as F);
   const [pagination, setPagination] = useState(initialPagination);
   const [sort, setSort] = useState(initialSort);
@@ -125,7 +140,7 @@ export const usePaginatedQuery = <F, D>({
         }
       }
     },
-    [enabled] // Add enabled as dependency
+    [enabled]
   );
 
   // Handle cleanup and initial data fetch
@@ -145,7 +160,7 @@ export const usePaginatedQuery = <F, D>({
       isMounted.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]); // Add enabled as dependency
+  }, [enabled]);
 
   // Reset pagination when filters change (but prevent infinite loop)
   const prevFiltersRef = useRef(debouncedFilters);
@@ -156,9 +171,15 @@ export const usePaginatedQuery = <F, D>({
     const filtersChanged = prevFiltersRef.current !== debouncedFilters;
     prevFiltersRef.current = debouncedFilters;
 
-    if (filtersChanged && pagination.page !== 1) {
+    // Type-safe way to check if pagination has a page property
+    const currentPage =
+      pagination && typeof pagination === "object" && "page" in pagination
+        ? (pagination as any).page
+        : 1;
+
+    if (filtersChanged && currentPage !== 1) {
       logger.debug("Filters changed, resetting pagination to page 1");
-      setPagination((prev) => ({ ...prev, page: 1 }));
+      setPagination((prev) => ({ ...prev, page: 1 } as P));
       return; // Don't fetch data here, let the pagination change trigger it
     }
 
@@ -167,7 +188,7 @@ export const usePaginatedQuery = <F, D>({
       logger.debug("Fetching data due to filter change");
       fetchData(pagination, sort, debouncedFilters);
     }
-  }, [debouncedFilters, pagination, sort, fetchData, enabled]); // Add enabled as dependency
+  }, [debouncedFilters, pagination, sort, fetchData, enabled]);
 
   // Fetch data when pagination or sort changes (but not filters, handled above)
   const prevPaginationRef = useRef(pagination);
@@ -187,7 +208,7 @@ export const usePaginatedQuery = <F, D>({
       logger.debug("Fetching data due to pagination/sort change");
       fetchData(pagination, sort, debouncedFilters);
     }
-  }, [pagination, sort, debouncedFilters, fetchData, enabled]); // Add enabled as dependency
+  }, [pagination, sort, debouncedFilters, fetchData, enabled]);
 
   // Effect to handle when enabled changes from false to true
   useEffect(() => {
@@ -217,15 +238,12 @@ export const usePaginatedQuery = <F, D>({
     setFilters: useCallback((value: React.SetStateAction<F>) => {
       setFilters(value);
     }, []),
-    setPagination: useCallback((value: React.SetStateAction<Pagination>) => {
+    setPagination: useCallback((value: React.SetStateAction<P>) => {
       setPagination(value);
     }, []),
-    setSort: useCallback(
-      (value: React.SetStateAction<SortInput | undefined>) => {
-        setSort(value);
-      },
-      []
-    ),
+    setSort: useCallback((value: React.SetStateAction<S | undefined>) => {
+      setSort(value);
+    }, []),
     refresh,
   };
 };

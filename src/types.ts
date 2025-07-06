@@ -2,14 +2,15 @@
 
 export type Maybe<T> = T | null;
 
-export interface Pagination {
+// Default types for backwards compatibility
+export interface DefaultPagination {
   page?: Maybe<number>;
   limit?: Maybe<number>;
 }
 
-export type SortInput = Record<string, string>;
+export type DefaultSortInput = Record<string, string>;
 
-export interface Meta {
+export interface DefaultMeta {
   page?: Maybe<number>;
   limit?: Maybe<number>;
   pages?: Maybe<number>;
@@ -18,13 +19,23 @@ export interface Meta {
   hasPrevPage?: Maybe<boolean>;
 }
 
-export interface QueryResult<D> {
+// Generic interfaces that can be customized
+export interface QueryResult<D, M = DefaultMeta> {
   data?: Maybe<Maybe<D>[]> | undefined;
-  meta?: Maybe<Meta> | undefined;
+  meta?: Maybe<M> | undefined;
 }
 
-export interface BaseServiceOptions<F> {
-  pagination?: Pagination;
-  sort?: SortInput;
+export interface BaseServiceOptions<
+  F,
+  P = DefaultPagination,
+  S = DefaultSortInput
+> {
+  pagination?: P;
+  sort?: S;
   filters?: F;
 }
+
+// Export the defaults for backwards compatibility
+export type Pagination = DefaultPagination;
+export type SortInput = DefaultSortInput;
+export type Meta = DefaultMeta;
