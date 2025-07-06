@@ -13,6 +13,7 @@ A lightweight, TypeScript-first library of React hooks for data fetching, pagina
 - ⏱️ **Debouncing** for search and filter inputs
 - 🔍 **Sorting and filtering** capabilities
 - 🧩 **TypeScript support** with full type safety
+- 🎯 **Customizable types** for pagination, sorting, and metadata
 - 🪶 **Lightweight** with zero dependencies
 - 🧪 **Well tested** and reliable
 
@@ -132,6 +133,97 @@ function UserList() {
 }
 ```
 
+### Custom Types for Different APIs
+
+One of the key features of this library is the ability to customize types for pagination, sorting, and metadata to match your API's response structure:
+
+```tsx
+import { usePaginatedQuery } from '@untools/react-query-hooks';
+
+// Define custom types to match your API
+interface CustomMeta {
+  page?: number;
+  limit?: number;
+  total?: number;
+  totalPages?: number;
+  hasNextPage?: boolean;
+  hasPreviousPage?: boolean; // Your API uses this instead of hasPrevPage
+}
+
+interface CustomPagination {
+  pageNumber?: number;
+  pageSize?: number;
+  offset?: number;
+}
+
+interface CustomSort {
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+interface UserFilters {
+  search?: string;
+  status?: 'active' | 'inactive';
+}
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'inactive';
+}
+
+function CustomUserList() {
+  const {
+    data,
+    isLoading,
+    error,
+    setPagination,
+    setFilters,
+    setSort,
+  } = usePaginatedQuery<UserFilters, User, CustomPagination, CustomSort, CustomMeta>({
+    service: {
+      getData: async (options) => {
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(options),
+        });
+        return response.json();
+      },
+    },
+    initialPagination: { pageNumber: 1, pageSize: 20 },
+    initialSort: { sortBy: 'name', sortOrder: 'asc' },
+    initialFilters: { status: 'active' },
+  });
+
+  return (
+    <div>
+      {/* Your component JSX */}
+      <button 
+        disabled={!data.meta?.hasPreviousPage}
+        onClick={() => setPagination(prev => ({ 
+          ...prev, 
+          pageNumber: (prev.pageNumber || 1) - 1 
+        }))}
+      >
+        Previous
+      </button>
+      
+      <button 
+        disabled={!data.meta?.hasNextPage}
+        onClick={() => setPagination(prev => ({ 
+          ...prev, 
+          pageNumber: (prev.pageNumber || 1) + 1 
+        }))}
+      >
+        Next
+      </button>
+    </div>
+  );
+}
+```
+
 ### Debounced Input
 
 You can also use the `useDebounce` hook directly:
@@ -154,6 +246,52 @@ function SearchComponent() {
       onChange={(e) => setSearchTerm(e.target.value)}
       placeholder="Search..."
     />
+  );
+}
+```
+
+### Enabled/Disabled Queries
+
+Control when queries should run using the `enabled` option:
+
+```tsx
+import { usePaginatedQuery } from '@untools/react-query-hooks';
+
+function ConditionalUserList({ shouldFetch }) {
+  const {
+    data,
+    isLoading,
+    error,
+    refresh,
+  } = usePaginatedQuery({
+    service: {
+      getData: (options) => fetchUsers(options)
+    },
+    enabled: shouldFetch, // Only fetch when this is true
+    initialPagination: { page: 1, limit: 10 },
+  });
+
+  // You can still manually trigger the query even when disabled
+  const handleManualRefresh = () => {
+    refresh();
+  };
+
+  return (
+    <div>
+      {shouldFetch ? (
+        <>
+          {isLoading && <div>Loading...</div>}
+          {error && <div>Error: {error.message}</div>}
+          {data.data.map(user => (
+            <div key={user.id}>{user.name}</div>
+          ))}
+        </>
+      ) : (
+        <button onClick={handleManualRefresh}>
+          Load Users
+        </button>
+      )}
+    </div>
   );
 }
 ```
@@ -193,23 +331,32 @@ function useQuery<T>({
 ### usePaginatedQuery
 
 ```typescript
-function usePaginatedQuery<F, D>({
+function usePaginatedQuery<F, D, P = DefaultPagination, S = DefaultSortInput, M = DefaultMeta>({
   service,
   initialFilters,
   initialPagination,
   initialSort,
   debounceTime,
-  state
-}: PaginatedQueryOptions<F, D>): {
-  data: QueryResult<D>;
+  state,
+  enabled
+}: PaginatedQueryOptions<F, D, P, S, M>): {
+  data: QueryResult<D, M>;
   error: Error | null;
   isLoading: boolean;
-  setFilters: (filters: F) => void;
-  setPagination: (pagination: Pagination) => void;
-  setSort: (sort: SortInput) => void;
+  setFilters: (filters: React.SetStateAction<F>) => void;
+  setPagination: (pagination: React.SetStateAction<P>) => void;
+  setSort: (sort: React.SetStateAction<S | undefined>) => void;
   refresh: () => Promise<void>;
 }
 ```
+
+#### Generic Type Parameters
+
+- `F`: Type for filters
+- `D`: Type for data items
+- `P`: Type for pagination (defaults to `DefaultPagination`)
+- `S`: Type for sorting (defaults to `DefaultSortInput`)
+- `M`: Type for metadata (defaults to `DefaultMeta`)
 
 #### Options
 
@@ -218,6 +365,7 @@ function usePaginatedQuery<F, D>({
 - `initialPagination?`: Initial pagination state (default: `{ page: 1, limit: 10 }`)
 - `initialSort?`: Initial sort configuration
 - `debounceTime?`: Debounce time in milliseconds for filter changes (default: 500)
+- `enabled?`: Boolean to control when the query should run (default: true)
 - `state?`: Optional object for external state management
   - `setState?`: Function to update external state
   - `getState?`: Function to get initial state
@@ -251,6 +399,8 @@ function useDebounce<T>(value: T, delay: number): T
 
 This library is built with TypeScript and provides full type safety. The hooks are generic and can be typed to match your data structures:
 
+### Basic Usage
+
 ```typescript
 // Define your data types
 interface User {
@@ -277,7 +427,98 @@ const { data, setFilters } = usePaginatedQuery<UserFilters, User>({
 });
 ```
 
+### Custom Types for API Compatibility
+
+```typescript
+// Define custom types to match your API response structure
+interface CustomMeta {
+  currentPage: number;
+  itemsPerPage: number;
+  totalItems: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+interface CustomPagination {
+  pageNum: number;
+  size: number;
+}
+
+interface CustomSort {
+  field: string;
+  direction: 'ascending' | 'descending';
+}
+
+// Use with custom types
+const { data } = usePaginatedQuery<
+  UserFilters,
+  User,
+  CustomPagination,
+  CustomSort,
+  CustomMeta
+>({
+  service: {
+    getData: (options) => fetchUsers(options)
+  },
+  initialPagination: { pageNum: 1, size: 20 },
+  initialSort: { field: 'name', direction: 'ascending' }
+});
+
+// Now data.meta will have your custom structure
+const canGoNext = data.meta?.hasNext;
+const canGoPrev = data.meta?.hasPrev;
+```
+
+### Default Types
+
+If you don't specify custom types, the library uses these defaults:
+
+```typescript
+// Default Pagination
+interface DefaultPagination {
+  page?: number | null;
+  limit?: number | null;
+}
+
+// Default Sort
+type DefaultSortInput = Record<string, string>;
+
+// Default Meta
+interface DefaultMeta {
+  page?: number | null;
+  limit?: number | null;
+  pages?: number | null;
+  total?: number | null;
+  hasNextPage?: boolean | null;
+  hasPrevPage?: boolean | null;
+}
+```
+
+## Migration Guide
+
+### From v0.1.x to v0.2.x
+
+The library maintains full backwards compatibility. Existing code will continue to work without any changes:
+
+```typescript
+// This still works exactly as before
+const { data } = usePaginatedQuery<UserFilters, User>({
+  service: { getData: fetchUsers },
+  initialFilters: { search: '' }
+});
+```
+
+To use the new custom types feature, simply add the additional generic parameters:
+
+```typescript
+// Enhanced with custom types
+const { data } = usePaginatedQuery<UserFilters, User, CustomPagination, CustomSort, CustomMeta>({
+  service: { getData: fetchUsers },
+  initialFilters: { search: '' }
+});
+```
+
 ## License
 
 MIT © [Miracle Onyenma](https://github.com/miracleonyenma)
-
