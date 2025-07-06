@@ -174,7 +174,7 @@ export const usePaginatedQuery = <
     // Type-safe way to check if pagination has a page property
     const currentPage =
       pagination && typeof pagination === "object" && "page" in pagination
-        ? (pagination as any).page
+        ? pagination.page
         : 1;
 
     if (filtersChanged && currentPage !== 1) {
