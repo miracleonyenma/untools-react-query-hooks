@@ -52,7 +52,7 @@ describe("usePaginatedQuery", () => {
 
     // Initially should be loading
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.data.data).toEqual([]);
+    expect(result?.current?.data?.data).toEqual([]);
 
     // Wait for the query to complete
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -214,7 +214,7 @@ describe("usePaginatedQuery", () => {
     await waitFor(() => {
       expect(result.current.error).toBeTruthy();
       expect(result.current.error?.message).toContain("API error");
-      expect(result.current.data.data).toEqual([]);
+      expect(result?.current?.data?.data).toEqual([]);
     });
   });
 
