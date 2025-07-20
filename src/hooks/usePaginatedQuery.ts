@@ -7,6 +7,7 @@ import {
   DefaultMeta,
   QueryResult,
   BaseServiceOptions,
+  Maybe,
 } from "../types";
 import { logger } from "../utils/logger";
 import { useDebounce } from "./useDebounce";
@@ -21,10 +22,10 @@ export interface PaginatedQueryOptions<
   service: {
     getData: (
       options: BaseServiceOptions<F, P, S>
-    ) => Promise<QueryResult<D, M>>;
+    ) => Promise<Maybe<QueryResult<D, M>> | undefined>;
   };
   state?: {
-    setState?: (state: QueryResult<D, M>) => void;
+    setState?: (state: Maybe<QueryResult<D, M>> | undefined) => void;
     getState?: () => QueryResult<D, M> | null;
   };
   initialFilters?: F;
@@ -49,7 +50,7 @@ export const usePaginatedQuery = <
   state,
   enabled = true,
 }: PaginatedQueryOptions<F, D, P, S, M>) => {
-  const [data, setData] = useState<QueryResult<D, M>>(
+  const [data, setData] = useState<Maybe<QueryResult<D, M>> | undefined>(
     state?.getState?.() || {
       data: [],
       meta: {
