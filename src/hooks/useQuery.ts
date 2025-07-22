@@ -24,18 +24,33 @@ export const useQuery = <T>({
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(immediate);
   const isMounted = useRef(true);
+  const requestInProgress = useRef(false);
+
+  // Stable references to prevent re-render loops
+  const serviceRef = useRef(service);
+  const stateRef = useRef(state);
+
+  // Update refs without causing re-renders
+  useEffect(() => {
+    serviceRef.current = service;
+  }, [service]);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const fetchData = useCallback(async () => {
-    if (!isMounted.current) return;
+    if (!isMounted.current || requestInProgress.current) return;
 
+    requestInProgress.current = true;
     setIsLoading(true);
     setError(null);
 
     try {
-      const result = await service();
+      const result = await serviceRef.current();
       if (isMounted.current) {
         setData(result);
-        state?.setState?.(result);
+        stateRef.current?.setState?.(result);
       }
     } catch (err) {
       logger.error("Error in useQuery:", err);
@@ -51,21 +66,25 @@ export const useQuery = <T>({
         );
       }
     } finally {
+      requestInProgress.current = false;
       if (isMounted.current) {
         setIsLoading(false);
       }
     }
-  }, [service, state]);
+  }, []); // No dependencies - uses refs
 
   useEffect(() => {
     isMounted.current = true;
+    requestInProgress.current = false;
+
     if (immediate) {
       fetchData();
     }
+
     return () => {
       isMounted.current = false;
     };
-  }, [fetchData, immediate]);
+  }, [immediate, fetchData]); // Only depend on immediate and stable fetchData
 
   return {
     data,
