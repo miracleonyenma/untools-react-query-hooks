@@ -1,6 +1,6 @@
 {
   "name": "@untools/react-query-hooks",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "TypeScript-first React hooks for data fetching, pagination, and query management",
   "type": "module",
   "main": "dist/index.js",
